@@ -31,15 +31,16 @@ const transporter = nodemailer.createTransport({
 const verifyTransporter = async () => {
   try {
     await transporter.verify();
-    console.log('SMTP transporter ready');
-    return true;
+    console.log("SMTP transporter ready");
   } catch (error) {
-    console.error('[emailService] SMTP transporter verification failed', error);
-    throw error;
+    console.error("[emailService] SMTP transporter verification failed:", error.message);
+
+   
+    console.log("Continuing without SMTP verification...");
   }
 };
 
-await verifyTransporter();
+verifyTransporter(); 
 
 export const sendMail = async ({ to, subject, html, from = defaultFrom }) => {
   try {
