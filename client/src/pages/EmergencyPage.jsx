@@ -12,10 +12,15 @@ export default function EmergencyPage() {
   const [editingRequest, setEditingRequest] = useState(null);
   const [editingForm, setEditingForm] = useState({ hospital: '', patient: '', phoneNumber: '', bloodGroup: 'O+', units: '', location: '', urgency: '' });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadRequests = async () => {
-    const res = await api.get('/emergency-requests');
-    setRequests(res.data.data || []);
+    try {
+      const res = await api.get('/api/emergency-requests');
+      setRequests(res.data.data || []);
+    } catch {
+      setRequests([]);
+    }
   };
 
   useEffect(() => { loadRequests(); }, []);
@@ -40,12 +45,21 @@ export default function EmergencyPage() {
       return;
     }
 
-    const res = await api.post('/emergency-requests', { ...form, phoneNumber: phone, units: unitsValue, urgency: form.urgency });
-    if (res.data.success) {
-      toast.success('Emergency request created');
-      setForm({ hospital: '', patient: '', phoneNumber: '', bloodGroup: 'O+', units: '', location: '', urgency: '' });
-      loadRequests();
-      window.dispatchEvent(new CustomEvent('dashboard:refresh'));
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/api/emergency-requests', { ...form, phoneNumber: phone, units: unitsValue, urgency: form.urgency });
+      if (res.data.success) {
+        toast.success('Emergency request created');
+        setForm({ hospital: '', patient: '', phoneNumber: '', bloodGroup: 'O+', units: '', location: '', urgency: '' });
+        await loadRequests();
+        window.dispatchEvent(new CustomEvent('dashboard:refresh'));
+      } else {
+        toast.error(res.data.message || 'Unable to create emergency request');
+      }
+    } catch (error) {
+      toast.error(error.customMessage || error?.response?.data?.message || 'Failed to create emergency request');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -53,7 +67,7 @@ export default function EmergencyPage() {
     if (!deleteTarget) return;
 
     try {
-      const res = await api.delete(`/emergency-requests/${deleteTarget._id}`);
+      const res = await api.delete(`/api/emergency-requests/${deleteTarget._id}`);
       if (res.data.success) {
         toast.success('Emergency request removed successfully.');
         setDeleteTarget(null);
@@ -101,7 +115,7 @@ export default function EmergencyPage() {
 
     setIsUpdating(true);
     try {
-      const res = await api.put(`/emergency-requests/${editingRequest._id}`, {
+      const res = await api.put(`/api/emergency-requests/${editingRequest._id}`, {
         ...editingForm,
         phoneNumber: phone,
         units: unitsValue,

@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await api.post('/auth/forgot-password', { email: trimmedEmail });
+      const res = await api.post('/api/auth/forgot-password', { email: trimmedEmail });
       if (res.data.success) {
         toast.success(res.data.message || 'OTP sent to your email');
         navigate('/verify-otp', { state: { email: trimmedEmail } });

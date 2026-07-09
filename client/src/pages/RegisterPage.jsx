@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || '';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
@@ -13,6 +15,8 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
+  const submitRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -24,20 +28,27 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitRef.current) return;
     if (!form.name || !form.email || !form.password) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    const payload = {
-      ...form,
-      email: form.email.trim().toLowerCase()
-    };
-
+    submitRef.current = true;
     setLoading(true);
-    const res = await register(payload);
-    setLoading(false);
-    if (res.success) navigate('/');
+    try {
+      const res = await register({ ...form, email: form.email.trim().toLowerCase() });
+      if (!res.success) {
+        toast.error(res.message || 'Unable to register. Please try again.');
+        return;
+      }
+      navigate(from, { replace: true });
+    } catch (error) {
+      toast.error(error.customMessage || error?.response?.data?.message || 'Unable to register. Please try again.');
+    } finally {
+      setLoading(false);
+      submitRef.current = false;
+    }
   };
 
   return (
@@ -64,7 +75,7 @@ export default function RegisterPage() {
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">or</span>
           <div className="h-px flex-1 bg-slate-700" />
         </div>
-        <a href="/api/auth/google" className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-100">
+        <a href={BACKEND_URL ? `${BACKEND_URL}/api/auth/google` : '/api/auth/google'} className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-100">
           <FcGoogle size={20} />
           Sign up with Google
         </a>

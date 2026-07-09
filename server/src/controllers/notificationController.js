@@ -3,7 +3,7 @@ import { sendResponse } from '../utils/response.js';
 
 export const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id }).sort('-createdAt');
+    const notifications = await Notification.find({ user: req.user._id }).sort('-createdAt').lean();
     return sendResponse(res, 200, true, 'Notifications fetched', notifications);
   } catch (error) {
     return sendResponse(res, 500, false, error.message);

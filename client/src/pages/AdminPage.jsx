@@ -5,7 +5,7 @@ export default function AdminPage() {
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
-    api.get('/emergency-requests').then((res) => setRequests(res.data.data || []));
+    api.get('/api/emergency-requests').then((res) => setRequests(res.data.data || [])).catch(() => setRequests([]));
   }, []);
 
   return (

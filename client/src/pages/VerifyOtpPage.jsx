@@ -31,10 +31,6 @@ export default function VerifyOtpPage() {
     return () => window.clearInterval(timer);
   }, [countdown]);
 
-  useEffect(() => {
-    return () => window.clearInterval();
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!/^\d{6}$/.test(otp)) {
@@ -44,7 +40,7 @@ export default function VerifyOtpPage() {
 
     setLoading(true);
     try {
-      const res = await api.post('/auth/verify-otp', { email, otp });
+      const res = await api.post('/api/auth/verify-otp', { email, otp });
       if (res.data.success) {
         toast.success('OTP verified successfully');
         navigate('/reset-password', { state: { email, otp } });
@@ -63,7 +59,7 @@ export default function VerifyOtpPage() {
 
     setResending(true);
     try {
-      const res = await api.post('/auth/resend-otp', { email });
+      const res = await api.post('/api/auth/resend-otp', { email });
       if (res.data.success) {
         setOtp('');
         setCountdown(30);

@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await api.post('/auth/reset-password', {
+      const res = await api.post('/api/auth/reset-password', {
         email,
         otp: location.state?.otp || '',
         password: form.password,

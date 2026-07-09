@@ -14,17 +14,19 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const [donorsRes, requestsRes] = await Promise.all([api.get('/donors'), api.get('/emergency-requests')]);
-      const emergencyRequests = requestsRes.data.data || [];
+      const [donorsRes, requestsRes] = await Promise.allSettled([api.get('/api/donors'), api.get('/api/emergency-requests')]);
+      const donorsCount = donorsRes.status === 'fulfilled' ? donorsRes.value.data.data.total || 0 : 0;
+      const emergencyRequests = requestsRes.status === 'fulfilled' ? requestsRes.value.data.data || [] : [];
 
       setStats({
-        donors: donorsRes.data.data.total || 0,
+        donors: donorsCount,
         requests: emergencyRequests.length || 0,
         active: emergencyRequests.filter((r) => r.status === 'active').length || 0
       });
       setRequests(emergencyRequests.slice(0, 4));
-    } catch (error) {
-      console.error('Failed to load dashboard stats', error);
+    } catch {
+      setStats((prev) => ({ ...prev }));
+      setRequests([]);
     }
   };
 

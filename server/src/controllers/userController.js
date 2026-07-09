@@ -2,19 +2,41 @@ import Donor from '../models/Donor.js';
 import User from '../models/User.js';
 import { sendResponse } from '../utils/response.js';
 
+const sanitizeUserUpdate = (body) => {
+  const allowedFields = [
+    'name',
+    'phone',
+    'department',
+    'year',
+    'city',
+    'bloodGroup',
+    'dateOfBirth',
+    'profileImage',
+    'availability',
+    'lastDonationDate'
+  ];
+
+  const updates = {};
+  if (body.dob !== undefined && body.dateOfBirth === undefined) {
+    updates.dateOfBirth = body.dob || null;
+  }
+
+  for (const key of allowedFields) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      updates[key] = body[key];
+    }
+  }
+
+  if (updates.dateOfBirth === '') {
+    updates.dateOfBirth = null;
+  }
+
+  return updates;
+};
+
 export const updateProfile = async (req, res) => {
   try {
-    const updates = { ...req.body };
-    if (updates.dateOfBirth === '') {
-      updates.dateOfBirth = null;
-    }
-    if (updates.dob === '') {
-      updates.dob = null;
-    }
-    if (updates.dob && !updates.dateOfBirth) {
-      updates.dateOfBirth = updates.dob;
-    }
-
+    const updates = sanitizeUserUpdate(req.body);
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true }).select('-password');
     if (!user) return sendResponse(res, 404, false, 'User not found');
 
@@ -35,7 +57,7 @@ export const updateProfile = async (req, res) => {
           profileImage: updates.profileImage || user.profileImage
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     return sendResponse(res, 200, true, 'Profile updated', { user });

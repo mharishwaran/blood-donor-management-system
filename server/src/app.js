@@ -14,9 +14,22 @@ import userRoutes from './routes/userRoutes.js';
 import { sendResponse } from './utils/response.js';
 
 const app = express();
+app.set("trust proxy", 1);
+
+if (process.env.TRUST_PROXY !== 'false') {
+  app.set('trust proxy', 1);
+}
 
 app.use(helmet());
-app.use(cors());
+const clientUrl = process.env.CLIENT_URL?.replace(/\/$/, '');
+const corsOptions = clientUrl
+  ? {
+      origin: clientUrl,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
+    }
+  : {};
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(generalLimiter);

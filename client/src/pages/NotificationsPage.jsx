@@ -10,8 +10,12 @@ export default function NotificationsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadNotifications = async () => {
-    const res = await api.get('/notifications');
-    setItems(res.data.data || []);
+    try {
+      const res = await api.get('/api/notifications');
+      setItems(res.data.data || []);
+    } catch {
+      setItems([]);
+    }
   };
 
   useEffect(() => {
@@ -20,7 +24,7 @@ export default function NotificationsPage() {
 
   const markRead = async (id) => {
     try {
-      await api.put(`/notifications/${id}/read`);
+      await api.put(`/api/notifications/${id}/read`);
       loadNotifications();
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Unable to update notification');
@@ -32,7 +36,7 @@ export default function NotificationsPage() {
 
     setIsDeleting(true);
     try {
-      await api.delete(`/notifications/${selectedId}`);
+      await api.delete(`/api/notifications/${selectedId}`);
       await loadNotifications();
       toast.success('Notification deleted successfully.');
     } catch (error) {

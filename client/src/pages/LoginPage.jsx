@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || '';
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -13,6 +15,8 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
+  const submitRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -24,24 +28,26 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitRef.current) return;
     if (!form.email || !form.password) {
       toast.error('Please enter both email and password');
       return;
     }
 
-    const normalizedEmail = form.email.trim().toLowerCase();
+    submitRef.current = true;
     setLoading(true);
     try {
-      const res = await login(normalizedEmail, form.password);
+      const res = await login(form.email, form.password);
       if (!res.success) {
         toast.error(res.message || 'Invalid email or password');
         return;
       }
-      navigate('/');
+      navigate(from, { replace: true });
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Invalid email or password');
+      toast.error(error.customMessage || error?.response?.data?.message || 'Unable to sign in. Please try again.');
     } finally {
       setLoading(false);
+      submitRef.current = false;
     }
   };
 
@@ -68,7 +74,7 @@ export default function LoginPage() {
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">or</span>
           <div className="h-px flex-1 bg-slate-700" />
         </div>
-        <a href="/api/auth/google" className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-100">
+        <a href={BACKEND_URL ? `${BACKEND_URL}/api/auth/google` : '/api/auth/google'} className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-100">
           <FcGoogle size={20} />
           Continue with Google
         </a>

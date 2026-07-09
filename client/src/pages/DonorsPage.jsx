@@ -14,7 +14,7 @@ export default function DonorsPage() {
 
   const fetchDonors = async (newPage = 1) => {
     try {
-      const res = await api.get('/donors', {
+      const res = await api.get('/api/donors', {
         params: {
           bloodGroup: filters.bloodGroup,
           location: filters.location,

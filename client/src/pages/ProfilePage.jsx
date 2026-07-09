@@ -40,7 +40,7 @@ export default function ProfilePage() {
         ...form,
         dateOfBirth: form.dateOfBirth || null
       };
-      const res = await api.put('/users/profile', payload);
+      const res = await api.put('/api/users/profile', payload);
       if (res.data.success) {
         updateUser(res.data.data.user);
         toast.success('Profile updated');

@@ -1,117 +1,153 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+const WELCOME_KEY = 'showWelcomeMessage';
+let authSessionValidated = false;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const validationControllerRef = useRef(null);
 
   const cacheUser = (updatedUser) => {
+    if (!updatedUser) {
+      localStorage.removeItem(USER_KEY);
+      setUser(null);
+      return;
+    }
     setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   };
 
   const setWelcomeFlag = (isNewUser) => {
     if (isNewUser) {
-      localStorage.setItem('showWelcomeMessage', 'true');
+      localStorage.setItem(WELCOME_KEY, 'true');
     } else {
-      localStorage.removeItem('showWelcomeMessage');
+      localStorage.removeItem(WELCOME_KEY);
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const cachedUser = localStorage.getItem('user');
-
-    if (!token) {
-      console.log('[auth-debug] no token in localStorage');
+    if (authSessionValidated) {
       setLoading(false);
       return;
     }
 
-    console.log('[auth-debug] validating stored token on refresh');
-    api.get('/auth/me')
-      .then((res) => {
-        console.log('[auth-debug] /auth/me success', res.data.data.user);
-        cacheUser(res.data.data.user);
-      })
-      .catch((error) => {
-        const status = error?.response?.status;
-        const message = error?.response?.data?.message || error?.message;
-        console.warn('[auth-debug] /auth/me failed', { status, message });
+    const controller = new AbortController();
+    validationControllerRef.current = controller;
+    const token = localStorage.getItem(TOKEN_KEY);
+    const cachedUser = localStorage.getItem(USER_KEY);
 
-        if (status === 429) {
-          if (cachedUser) {
-            console.warn('[auth-debug] using cached user after rate limit');
-            setUser(JSON.parse(cachedUser));
-          } else {
-            console.warn('[auth-debug] no cached user available after rate limit');
-          }
+    if (!token) {
+      setLoading(false);
+      authSessionValidated = true;
+      return;
+    }
+
+    if (cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+      } catch {
+        localStorage.removeItem(USER_KEY);
+      }
+    }
+
+    const validateSession = async () => {
+      try {
+        const res = await api.get('/api/auth/me', { signal: controller.signal });
+        if (res.data?.success) {
+          cacheUser(res.data.data.user);
         } else {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
+          localStorage.removeItem(TOKEN_KEY);
+          cacheUser(null);
         }
-      })
-      .finally(() => setLoading(false));
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const status = error?.response?.status;
+        if (status === 429) {
+          return;
+        }
+        localStorage.removeItem(TOKEN_KEY);
+        cacheUser(null);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          authSessionValidated = true;
+        }
+      }
+    };
+
+    validateSession();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
-  const updateUser = (updatedUser) => {
-    cacheUser(updatedUser);
-  };
-
   const login = async (email, password) => {
+    let result = { success: false, message: 'Unable to login. Please try again.' };
+
     try {
       const normalizedEmail = (email || '').trim().toLowerCase();
-      console.log('[auth-debug] login request', { email: normalizedEmail });
-      const res = await api.post('/auth/login', { email: normalizedEmail, password });
-      if (res.data.success) {
-        localStorage.setItem('token', res.data.data.token);
-        cacheUser(res.data.data.user);
-        setWelcomeFlag(res.data.data.isNewUser || false);
-        toast.success('Login successful');
-        console.log('[auth-debug] login success stored token and user');
+      const res = await api.post('/api/auth/login', { email: normalizedEmail, password });
+      result = res.data;
+
+      if (result.success) {
+        localStorage.setItem(TOKEN_KEY, result.data.token);
+        cacheUser(result.data.user);
+        setWelcomeFlag(result.data.isNewUser || false);
       }
-      return res.data;
     } catch (error) {
-      const status = error?.response?.status;
-      const message = status === 429
-        ? 'Too many requests. Please try again later.'
-        : error?.response?.data?.message || 'Invalid email or password';
-      console.warn('[auth-debug] login failed', { status, message });
-      return { success: false, message };
+      result = {
+        success: false,
+        message: error.customMessage || error?.response?.data?.message || 'Invalid email or password'
+      };
     }
+
+    return result;
   };
 
   const register = async (payload) => {
-    const normalizedPayload = {
-      ...payload,
-      email: (payload?.email || '').trim().toLowerCase()
-    };
-    console.log('[auth-debug] register request', { email: normalizedPayload.email });
-    const res = await api.post('/auth/register', normalizedPayload);
-    if (res.data.success) {
-      localStorage.setItem('token', res.data.data.token);
-      cacheUser(res.data.data.user);
-      setWelcomeFlag(res.data.data.isNewUser || true);
-      toast.success('Registration successful');
-      console.log('[auth-debug] register success stored token and user');
+    let result = { success: false, message: 'Unable to register. Please try again.' };
+    try {
+      const normalizedPayload = {
+        ...payload,
+        email: (payload?.email || '').trim().toLowerCase()
+      };
+      const res = await api.post('/api/auth/register', normalizedPayload);
+      result = res.data;
+
+      if (result.success) {
+        localStorage.setItem(TOKEN_KEY, result.data.token);
+        cacheUser(result.data.user);
+        setWelcomeFlag(result.data.isNewUser || true);
+      }
+    } catch (error) {
+      result = {
+        success: false,
+        message: error.customMessage || error?.response?.data?.message || 'Unable to register. Please try again.'
+      };
     }
-    return res.data;
+
+    return result;
   };
 
   const logout = () => {
-    console.log('[auth-debug] logout request');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('showWelcomeMessage');
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(WELCOME_KEY);
     setUser(null);
-    toast.success('Logged out');
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>{children}</AuthContext.Provider>;
+  const value = useMemo(
+    () => ({ user, loading, login, register, logout, updateUser: cacheUser }),
+    [user, loading]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => useContext(AuthContext);

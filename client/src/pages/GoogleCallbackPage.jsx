@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api from '../api/axios';
 
 export default function GoogleCallbackPage() {
   const navigate = useNavigate();
@@ -9,32 +8,22 @@ export default function GoogleCallbackPage() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const isNewUser = searchParams.get('isNewUser');
 
-    const finishAuth = async () => {
-      if (!token) {
-        toast.error('Google authentication failed');
-        navigate('/login', { replace: true });
-        return;
-      }
+    if (!token) {
+      toast.error('Google authentication failed. Please try again.');
+      navigate('/login', { replace: true });
+      return;
+    }
 
-      localStorage.setItem('token', token);
+    localStorage.setItem('token', token);
+    if (isNewUser === 'true') {
+      localStorage.setItem('showWelcomeMessage', 'true');
+    } else {
+      localStorage.removeItem('showWelcomeMessage');
+    }
 
-      try {
-        const res = await api.get('/auth/me');
-        const user = res?.data?.data?.user;
-        if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-        toast.success('Google sign-in successful');
-        window.location.replace('/');
-      } catch (error) {
-        console.error('Google callback auth failed', error);
-        toast.error('Google authentication failed');
-        navigate('/login', { replace: true });
-      }
-    };
-
-    finishAuth();
+    window.location.replace('/');
   }, [navigate, searchParams]);
 
   return (

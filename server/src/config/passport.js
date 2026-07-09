@@ -5,13 +5,14 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.js';
 
 const getClientUrl = () => process.env.CLIENT_URL || 'http://localhost:5173';
+const getBackendUrl = () => (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/$/, '');
+const defaultCallbackUrl = `${getBackendUrl()}/api/auth/google/callback`;
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL,
-  scope: ['profile', 'email'],
-  prompt: 'select_account'
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || defaultCallbackUrl,
+  passReqToCallback: false
 }, async (_accessToken, _refreshToken, profile, done) => {
   try {
     const email = profile.emails?.[0]?.value?.trim().toLowerCase();
@@ -38,7 +39,7 @@ passport.use(new GoogleStrategy({
       if (Object.keys(updates).length > 0) {
         user = await User.findByIdAndUpdate(user._id, updates, { new: true });
       }
-      return done(null, user);
+      return done(null, user, { isNewUser: false });
     }
 
     const randomPassword = crypto.randomBytes(24).toString('hex');
@@ -51,7 +52,7 @@ passport.use(new GoogleStrategy({
       provider: 'google'
     });
 
-    return done(null, user);
+    return done(null, user, { isNewUser: true });
   } catch (error) {
     return done(error);
   }

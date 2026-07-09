@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import User from '../models/User.js';
 import { sendResponse } from '../utils/response.js';
 import passport from '../config/passport.js';
-import { generateGoogleAuthToken } from '../config/passport.js';
 import { addNotificationJob } from '../jobs/notificationQueue.js';
 import {
   sendPasswordResetOtp,
@@ -14,13 +13,22 @@ import {
 
 const generateToken = (user) => {
   const payload = { id: user._id, role: user.role };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-  console.log('[auth-debug] JWT generated', { userId: user._id.toString(), role: user.role, expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-  return token;
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 };
+
+const getClientUrl = () => process.env.CLIENT_URL || 'http://localhost:5173';
 
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 const normalizeEmail = (value = '') => value.trim().toLowerCase();
+const sanitizeUser = (user) => {
+  const safeUser = user.toObject ? user.toObject() : { ...user };
+  delete safeUser.password;
+  delete safeUser.resetOTP;
+  delete safeUser.resetOTPExpiry;
+  delete safeUser.otpResendCount;
+  delete safeUser.otpResendAt;
+  return safeUser;
+};
 const safelySendEmail = async (sendFn, payload, label) => {
   try {
     await sendFn(payload);
@@ -33,24 +41,31 @@ const safelySendEmail = async (sendFn, payload, label) => {
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    console.log('[auth-debug] register payload', { name, email: normalizedEmail, password });
+
+    if (!name?.trim() || !normalizedEmail || !password || password.length < 8) {
+      return sendResponse(res, 400, false, 'Name, email and password are required and password must be at least 8 characters long');
+    }
 
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) return sendResponse(res, 400, false, 'User already exists');
 
-    const user = await User.create({ name, email: normalizedEmail, password, role });
+    const user = await User.create({ name: name.trim(), email: normalizedEmail, password });
     const token = generateToken(user);
     const isNewUser = true;
+    const responsePayload = { token, user: sanitizeUser(user), isNewUser };
 
-    await safelySendEmail(
-      sendWelcomeEmail,
-      { to: user.email, name: user.name, email: user.email },
-      'Welcome email'
-    );
+    sendResponse(res, 201, true, 'Registration successful', responsePayload);
 
-    return sendResponse(res, 201, true, 'Registration successful', { token, user: { ...user.toObject(), password: undefined }, isNewUser });
+    void (async () => {
+      await safelySendEmail(
+        sendWelcomeEmail,
+        { to: user.email, name: user.name, email: user.email },
+        'Welcome email'
+      );
+    })();
+    return;
   } catch (error) {
     return sendResponse(res, 500, false, error.message);
   }
@@ -60,40 +75,39 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    console.log('[auth-debug] login payload', { email: normalizedEmail, password });
 
     const user = await User.findOne({ email: normalizedEmail });
-    console.log('[auth-debug] user found', !!user, user?.email);
     if (!user) return sendResponse(res, 401, false, 'Invalid email or password');
 
     const isMatch = await user.comparePassword(password);
-    console.log('[auth-debug] password compare', isMatch);
     if (!isMatch) return sendResponse(res, 401, false, 'Invalid email or password');
 
     const token = generateToken(user);
-    console.log('[auth-debug] login success for user', { userId: user._id.toString() });
-    console.log('[auth-debug] login email requested', { userId: user._id.toString(), email: user.email });
+    const responsePayload = { token, user: sanitizeUser(user), isNewUser: false };
 
-    await safelySendEmail(
-      sendLoginSuccessEmail,
-      {
-        to: user.email,
-        name: user.name,
-        loginTime: new Date().toLocaleString(),
-        browser: req.headers['user-agent'] || 'Unknown browser',
-        device: 'Web'
-      },
-      'Login success email'
-    );
+    sendResponse(res, 200, true, 'Login successful', responsePayload);
 
-    try {
-      await addNotificationJob({ userId: user._id, title: 'Welcome', message: 'Login successful', email: user.email, type: 'info' });
-      console.log('[auth-debug] login notification queue job created', { userId: user._id.toString(), email: user.email });
-    } catch (queueError) {
-      console.error('[auth-debug] login notification queue job failed', { userId: user._id.toString(), error: queueError.message });
-    }
+    void (async () => {
+      await safelySendEmail(
+        sendLoginSuccessEmail,
+        {
+          to: user.email,
+          name: user.name,
+          loginTime: new Date().toLocaleString(),
+          browser: req.headers['user-agent'] || 'Unknown browser',
+          device: 'Web'
+        },
+        'Login success email'
+      );
 
-    return sendResponse(res, 200, true, 'Login successful', { token, user: { ...user.toObject(), password: undefined }, isNewUser: false });
+      try {
+        await addNotificationJob({ userId: user._id, title: 'Welcome', message: 'Login successful', email: user.email, type: 'info' });
+        console.log('[auth-debug] login notification queue job created', { userId: user._id.toString(), email: user.email });
+      } catch (queueError) {
+        console.error('[auth-debug] login notification queue job failed', { userId: user._id.toString(), error: queueError.message });
+      }
+    })();
+    return;
   } catch (error) {
     return sendResponse(res, 500, false, error.message);
   }
@@ -107,39 +121,41 @@ export const me = async (req, res) => {
 export const googleAuth = passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' });
 
 export const googleAuthCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, async (err, user) => {
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
     if (err) {
-      console.error('[auth-debug] google auth error', err);
-      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google_auth_failed`);
+      console.error('Google auth error', err);
+      return res.redirect(`${getClientUrl()}/login?error=google_auth_failed`);
     }
 
     if (!user) {
-      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google_auth_failed`);
+      return res.redirect(`${getClientUrl()}/login?error=google_auth_failed`);
     }
 
-    const token = generateGoogleAuthToken(user);
-    const isNewUser = user?.isNewUser ?? false;
+    const token = generateToken(user);
+    const isNewUser = info?.isNewUser ?? false;
+    const frontendRedirect = `${getClientUrl()}/auth/google/callback?token=${encodeURIComponent(token)}&isNewUser=${isNewUser}`;
 
-    await safelySendEmail(
-      sendLoginSuccessEmail,
-      {
-        to: user.email,
-        name: user.name,
-        loginTime: new Date().toLocaleString(),
-        browser: req.headers['user-agent'] || 'Unknown browser',
-        device: 'Google OAuth'
-      },
-      'Google login success email'
-    );
+    void (async () => {
+      await safelySendEmail(
+        sendLoginSuccessEmail,
+        {
+          to: user.email,
+          name: user.name,
+          loginTime: new Date().toLocaleString(),
+          browser: req.headers['user-agent'] || 'Unknown browser',
+          device: 'Google OAuth'
+        },
+        'Google login success email'
+      );
 
-    try {
-      await addNotificationJob({ userId: user._id, title: 'Welcome', message: 'Google login successful', email: user.email, type: 'info' });
-      console.log('[auth-debug] google login notification queue job created', { userId: user._id.toString(), email: user.email });
-    } catch (queueError) {
-      console.error('[auth-debug] google login notification queue job failed', { userId: user._id.toString(), error: queueError.message });
-    }
+      try {
+        await addNotificationJob({ userId: user._id, title: 'Welcome', message: 'Google login successful', email: user.email, type: 'info' });
+        console.log('[auth-debug] google login notification queue job created', { userId: user._id.toString(), email: user.email });
+      } catch (queueError) {
+        console.error('[auth-debug] google login notification queue job failed', { userId: user._id.toString(), error: queueError.message });
+      }
+    })();
 
-    const frontendRedirect = `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?token=${encodeURIComponent(token)}&isNewUser=${isNewUser}`;
     return res.redirect(frontendRedirect);
   })(req, res, next);
 };
