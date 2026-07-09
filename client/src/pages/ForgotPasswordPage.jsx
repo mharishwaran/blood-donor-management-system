@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
+import axios from "axios";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -24,9 +25,20 @@ export default function ForgotPasswordPage() {
   try {
     console.log("🚀 Before API call");
 
-    const res = await api.post("/api/auth/forgot-password", {
-      email: trimmedEmail,
-    });
+  const res = await axios.post(
+  "https://blood-donor-management-system-zhdz.onrender.com/api/auth/forgot-password",
+  {
+    email: trimmedEmail,
+  },
+  {
+    timeout: 10000,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }
+);
+
+console.log(res.data);
 
     console.log("✅ After API call");
     console.log(res);

@@ -10,7 +10,7 @@ router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
 router.get('/google', authLimiter, googleAuth);
 router.get('/google/callback', authLimiter, googleAuthCallback);
-router.post('/forgot-password', authLimiter, validateForgotPassword, forgotPassword);
+router.post('/forgot-password', validateForgotPassword, forgotPassword);
 router.post('/verify-otp', authLimiter, validateVerifyOtp, verifyOTP);
 router.post('/resend-otp', authLimiter, validateResendOtp, resendOTP);
 router.post('/reset-password', authLimiter, validateResetPassword, resetPassword);

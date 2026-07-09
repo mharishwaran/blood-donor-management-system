@@ -15,8 +15,12 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
 import { sendResponse } from './utils/response.js';
-
 const app = express();
+
+app.use((req, res, next) => {
+  console.log("🔥", req.method, req.originalUrl);
+  next();
+});
 
 app.set("trust proxy", 1);
 
@@ -60,7 +64,7 @@ app.use(morgan("dev"));
 app.use(passport.initialize());
 
 // Rate limiter AFTER body parser
-app.use(generalLimiter);
+//app.use(generalLimiter);
 
 app.get("/api/health", (req, res) => {
   return sendResponse(res, 200, true, "Server is healthy");
