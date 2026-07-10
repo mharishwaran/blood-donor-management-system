@@ -8,8 +8,9 @@ export default function AdminEmergencyPage() {
   useEffect(() => {
     const loadEmergency = async () => {
       try {
-        const res = await adminApi.get('/api/admin/emergency');
-        setRequests(res.data?.data || []);
+        const res = await adminApi.get('/api/admin/emergency-requests');
+        const payload = res.data?.data;
+        setRequests(Array.isArray(payload) ? payload : payload?.requests || []);
       } catch {
         setRequests([]);
       } finally {

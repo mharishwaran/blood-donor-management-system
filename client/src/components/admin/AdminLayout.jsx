@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, HeartHandshake, ClipboardList, AlertTriangle, UserCircle, Bell, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, HeartHandshake, AlertTriangle, UserCircle, Bell, LogOut } from 'lucide-react';
 import adminApi, { ADMIN_TOKEN_KEY } from '../../api/adminAxios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -8,7 +8,6 @@ const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/dashboard/users', label: 'Users', icon: Users },
   { to: '/admin/dashboard/donors', label: 'Donors', icon: HeartHandshake },
-  { to: '/admin/dashboard/requests', label: 'Requests', icon: ClipboardList },
   { to: '/admin/dashboard/emergency', label: 'Emergency Requests', icon: AlertTriangle },
   { to: '/admin/dashboard/profile', label: 'Admin Profile', icon: UserCircle },
   { to: '/admin/dashboard/notifications', label: 'Notifications', icon: Bell }
