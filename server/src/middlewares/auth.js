@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { sendResponse } from '../utils/response.js';
+import { getJwtSecret } from '../utils/adminAuth.js';
 
-const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+const verifyToken = (token) => jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
 
 export const protect = async (req, res, next) => {
   try {

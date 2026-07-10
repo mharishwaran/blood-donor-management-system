@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.js';
+import { getJwtSecret } from '../utils/adminAuth.js';
 
 const getClientUrl = () => process.env.CLIENT_URL || 'http://localhost:5173';
 const getBackendUrl = () => (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -70,7 +71,7 @@ passport.deserializeUser(async (id, done) => {
 
 export const generateGoogleAuthToken = (user) => jwt.sign(
   { id: user._id, role: user.role },
-  process.env.JWT_SECRET,
+  getJwtSecret(),
   { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
 );
 

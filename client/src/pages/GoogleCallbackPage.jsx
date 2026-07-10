@@ -32,7 +32,7 @@ export default function GoogleCallbackPage() {
           localStorage.setItem("showWelcomeMessage", "true");
         }
 
-        navigate("/", { replace: true });
+        window.location.replace("/");
       } catch (err) {
         console.error(err);
         localStorage.removeItem("token");

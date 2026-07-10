@@ -10,16 +10,25 @@ import {
   sendWelcomeEmail,
   sendLoginSuccessEmail
 } from '../services/emailService.js';
+import { getJwtSecret } from '../utils/adminAuth.js';
 
 const generateToken = (user) => {
   const payload = { id: user._id, role: user.role };
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 };
 
 const getClientUrl = () => process.env.CLIENT_URL || 'http://localhost:5173';
 
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 const normalizeEmail = (value = '') => value.trim().toLowerCase();
+const isConfiguredAdminEmail = (email = '') => normalizeEmail(email) === normalizeEmail(process.env.ADMIN_EMAIL || '');
+const syncAdminRole = async (user) => {
+  if (user && isConfiguredAdminEmail(user.email) && user.role !== 'admin') {
+    user.role = 'admin';
+    await user.save();
+  }
+  return user;
+};
 const sanitizeUser = (user) => {
   const safeUser = user.toObject ? user.toObject() : { ...user };
   delete safeUser.password;
@@ -54,9 +63,10 @@ export const register = async (req, res) => {
     if (existingUser) return sendResponse(res, 400, false, 'User already exists');
 
     const user = await User.create({ name: name.trim(), email: normalizedEmail, password });
-    const token = generateToken(user);
+    const persistedUser = await syncAdminRole(user);
+    const token = generateToken(persistedUser);
     const isNewUser = true;
-    const responsePayload = { token, user: sanitizeUser(user), isNewUser };
+    const responsePayload = { token, user: sanitizeUser(persistedUser), isNewUser };
 
     sendResponse(res, 201, true, 'Registration successful', responsePayload);
 
@@ -84,8 +94,9 @@ export const login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return sendResponse(res, 401, false, 'Invalid email or password');
 
-    const token = generateToken(user);
-    const responsePayload = { token, user: sanitizeUser(user), isNewUser: false };
+    const persistedUser = await syncAdminRole(user);
+    const token = generateToken(persistedUser);
+    const responsePayload = { token, user: sanitizeUser(persistedUser), isNewUser: false };
 
     sendResponse(res, 200, true, 'Login successful', responsePayload);
 
@@ -133,7 +144,8 @@ export const googleAuthCallback = (req, res, next) => {
       return res.redirect(`${getClientUrl()}/login?error=google_auth_failed`);
     }
 
-    const token = generateToken(user);
+    const persistedUser = await syncAdminRole(user);
+    const token = generateToken(persistedUser);
     const isNewUser = info?.isNewUser ?? false;
     const frontendRedirect = `${getClientUrl()}/auth/google/callback?token=${encodeURIComponent(token)}&isNewUser=${isNewUser}`;
 

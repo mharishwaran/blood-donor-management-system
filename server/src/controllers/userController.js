@@ -37,26 +37,35 @@ const sanitizeUserUpdate = (body) => {
 export const updateProfile = async (req, res) => {
   try {
     const updates = sanitizeUserUpdate(req.body);
-    const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true }).select('-password');
-    if (!user) return sendResponse(res, 404, false, 'User not found');
+    if (Object.keys(updates).length === 0) {
+      return sendResponse(res, 400, false, 'No valid fields provided for update');
+    }
+
+    const currentUser = await User.findById(req.user._id);
+    if (!currentUser) return sendResponse(res, 404, false, 'User not found');
+
+    Object.assign(currentUser, updates);
+    await currentUser.save();
+
+    const user = await User.findById(req.user._id).select('-password');
+
+    const donorUpdates = {
+      user: req.user._id,
+      name: user.name,
+      bloodGroup: user.bloodGroup,
+      department: user.department,
+      year: user.year,
+      city: user.city,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      availability: user.availability,
+      lastDonationDate: user.lastDonationDate,
+      profileImage: user.profileImage
+    };
 
     await Donor.findOneAndUpdate(
       { user: req.user._id },
-      {
-        $set: {
-          user: req.user._id,
-          name: updates.name || user.name,
-          bloodGroup: updates.bloodGroup || user.bloodGroup,
-          department: updates.department || user.department,
-          year: updates.year || user.year,
-          city: updates.city || user.city,
-          phone: updates.phone || user.phone,
-          dateOfBirth: user.dateOfBirth,
-          availability: updates.availability ?? user.availability,
-          lastDonationDate: updates.lastDonationDate || user.lastDonationDate,
-          profileImage: updates.profileImage || user.profileImage
-        }
-      },
+      { $set: donorUpdates },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
