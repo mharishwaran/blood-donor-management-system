@@ -194,30 +194,18 @@ export default function ProfilePage() {
               }
             />
 
-            <div className="relative">
-              <input
-                type="text"
-                readOnly
-                placeholder="Date of Birth"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3"
-                value={form.dateOfBirth ? formatDateForDisplay(form.dateOfBirth) : ''}
-                onClick={() => {
-                  dateInputRef.current?.showPicker?.();
-                  if (!dateInputRef.current?.showPicker) {
-                    dateInputRef.current?.click();
-                  }
-                }}
-                onFocus={() => {
-                  dateInputRef.current?.showPicker?.();
-                  if (!dateInputRef.current?.showPicker) {
-                    dateInputRef.current?.click();
-                  }
-                }}
-              />
+            <div
+              className="relative"
+              onClick={() => dateInputRef.current?.showPicker?.()}
+            >
               <input
                 ref={dateInputRef}
                 type="date"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3"
+                style={{
+                  color: form.dateOfBirth ? 'inherit' : 'transparent',
+                  WebkitTextFillColor: form.dateOfBirth ? 'currentColor' : 'transparent',
+                }}
                 value={form.dateOfBirth}
                 onChange={(e) =>
                   setForm({
@@ -225,7 +213,13 @@ export default function ProfilePage() {
                     dateOfBirth: e.target.value,
                   })
                 }
+                onFocus={() => dateInputRef.current?.showPicker?.()}
               />
+              {!form.dateOfBirth && (
+                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm text-slate-400">
+                  Date of Birth
+                </div>
+              )}
             </div>
 
             <label className="flex items-center gap-3 text-sm text-slate-300">
