@@ -65,26 +65,42 @@ export default function DashboardPage() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          { label: 'Total Donors', value: stats.donors, icon: Users, accent: 'from-red-500 to-orange-400', path: '/donors' },
-          { label: 'Requests', value: stats.requests, icon: HeartHandshake, accent: 'from-sky-500 to-indigo-500', path: '/emergency' },
-          { label: 'Active Emergencies', value: stats.active, icon: AlertCircle, accent: 'from-emerald-500 to-lime-500', path: '/emergency' }
-        ].map((item, index) => (
-          <motion.button
-            key={item.label}
-            type="button"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08 }}
-            onClick={() => navigate(item.path)}
-            className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left shadow-xl transition duration-200 hover:-translate-y-1 hover:shadow-2xl sm:p-5"
-          >
-            <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.accent}`}>
-              <item.icon className="text-white" size={20} />
-            </div>
-            <p className="text-sm text-slate-400">{item.label}</p>
-            <p className="mt-2 text-3xl font-semibold">{item.value}</p>
-          </motion.button>
-        ))}
+          { label: 'Total Donors', value: stats.donors, icon: Users, accent: 'from-red-500 to-orange-400', path: '/dashboard/all-donors' },
+          { label: 'Requests', value: stats.requests, icon: HeartHandshake, accent: 'from-sky-500 to-indigo-500', path: '/dashboard/all-requests' },
+          { label: 'Active Emergencies', value: stats.active, icon: AlertCircle, accent: 'from-emerald-500 to-lime-500' }
+        ].map((item, index) => {
+          const isClickable = Boolean(item.path);
+          const cardContent = (
+            <>
+              <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.accent}`}>
+                <item.icon className="text-white" size={20} />
+              </div>
+              <p className="text-sm text-slate-400">{item.label}</p>
+              <p className="mt-2 text-3xl font-semibold">{item.value}</p>
+            </>
+          );
+
+          return (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              className={`rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left shadow-xl transition duration-200 sm:p-5 ${isClickable ? 'cursor-pointer hover:-translate-y-1 hover:shadow-2xl' : 'cursor-default'}`}
+              onClick={() => isClickable && navigate(item.path)}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              onKeyDown={(event) => {
+                if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  navigate(item.path);
+                }
+              }}
+            >
+              {cardContent}
+            </motion.div>
+          );
+        })}
       </div>
       <div className="grid gap-6">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">

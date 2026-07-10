@@ -7,6 +7,8 @@ import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import DonorsPage from './pages/DonorsPage';
 import EmergencyPage from './pages/EmergencyPage';
+import AllDonorsPage from './pages/AllDonorsPage';
+import AllRequestsPage from './pages/AllRequestsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -52,6 +54,8 @@ const AppRoutes = () => (
       <Route path="emergency" element={<EmergencyPage />} />
       <Route path="notifications" element={<NotificationsPage />} />
       <Route path="profile" element={<ProfilePage />} />
+      <Route path="all-donors" element={<AllDonorsPage />} />
+      <Route path="all-requests" element={<AllRequestsPage />} />
     </Route>
     <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminPasswordPage /></ProtectedRoute>} />
     <Route path="/admin/login" element={<ProtectedRoute requireAdmin><AdminPasswordPage /></ProtectedRoute>} />
