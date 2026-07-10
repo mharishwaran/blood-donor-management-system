@@ -22,6 +22,35 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   };
 
+  const clearAuthSession = () => {
+    console.debug('[auth-debug] clearing auth session');
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(WELCOME_KEY);
+    setUser(null);
+    authSessionValidated = true;
+    setLoading(false);
+  };
+
+  const setAuthSession = (token, userData, isNewUser = false) => {
+    console.debug('[auth-debug] setAuthSession', { hasToken: Boolean(token), hasUser: Boolean(userData), isNewUser });
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+
+    if (userData) {
+      cacheUser(userData);
+    } else {
+      cacheUser(null);
+    }
+
+    setWelcomeFlag(isNewUser);
+    authSessionValidated = true;
+    setLoading(false);
+  };
+
   const setWelcomeFlag = (isNewUser) => {
     if (isNewUser) {
       localStorage.setItem(WELCOME_KEY, 'true');
@@ -41,6 +70,8 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem(TOKEN_KEY);
     const cachedUser = localStorage.getItem(USER_KEY);
 
+    console.debug('[auth-debug] auth init', { hasToken: Boolean(token), hasCachedUser: Boolean(cachedUser), authSessionValidated });
+
     if (!token) {
       setLoading(false);
       authSessionValidated = true;
@@ -59,19 +90,20 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await api.get('/api/auth/me', { signal: controller.signal });
         if (res.data?.success) {
-          cacheUser(res.data.data.user);
+          console.debug('[auth-debug] session validation success', { user: res.data?.data?.user?.email });
+          setAuthSession(localStorage.getItem(TOKEN_KEY), res.data.data.user, false);
         } else {
-          localStorage.removeItem(TOKEN_KEY);
-          cacheUser(null);
+          console.debug('[auth-debug] session validation failed', { data: res.data });
+          clearAuthSession();
         }
       } catch (error) {
+        console.debug('[auth-debug] session validation error', { message: error?.message, status: error?.response?.status });
         if (controller.signal.aborted) return;
         const status = error?.response?.status;
         if (status === 429) {
           return;
         }
-        localStorage.removeItem(TOKEN_KEY);
-        cacheUser(null);
+        clearAuthSession();
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -96,9 +128,7 @@ export const AuthProvider = ({ children }) => {
       result = res.data;
 
       if (result.success) {
-        localStorage.setItem(TOKEN_KEY, result.data.token);
-        cacheUser(result.data.user);
-        setWelcomeFlag(result.data.isNewUser || false);
+        setAuthSession(result.data.token, result.data.user, result.data.isNewUser || false);
       }
     } catch (error) {
       result = {
@@ -121,9 +151,7 @@ export const AuthProvider = ({ children }) => {
       result = res.data;
 
       if (result.success) {
-        localStorage.setItem(TOKEN_KEY, result.data.token);
-        cacheUser(result.data.user);
-        setWelcomeFlag(result.data.isNewUser || true);
+        setAuthSession(result.data.token, result.data.user, result.data.isNewUser || true);
       }
     } catch (error) {
       result = {
@@ -142,10 +170,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('adminToken');
     sessionStorage.removeItem('adminToken');
     setUser(null);
+    authSessionValidated = true;
+    setLoading(false);
   };
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, updateUser: cacheUser }),
+    () => ({ user, loading, login, register, logout, updateUser: cacheUser, setAuthSession, clearAuthSession }),
     [user, loading]
   );
 

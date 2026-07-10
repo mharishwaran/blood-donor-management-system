@@ -147,7 +147,10 @@ export const googleAuthCallback = (req, res, next) => {
     const persistedUser = await syncAdminRole(user);
     const token = generateToken(persistedUser);
     const isNewUser = info?.isNewUser ?? false;
+    console.debug('[auth-debug] google callback success', { email: persistedUser.email, userId: persistedUser._id.toString(), isNewUser, role: persistedUser.role });
+    console.debug('[auth-debug] google callback token', { tokenPreview: token.slice(0, 20) });
     const frontendRedirect = `${getClientUrl()}/auth/google/callback?token=${encodeURIComponent(token)}&isNewUser=${isNewUser}`;
+    console.debug('[auth-debug] google callback redirecting to', { frontendRedirect });
 
     void (async () => {
       if (isNewUser) {

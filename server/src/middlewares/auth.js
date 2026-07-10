@@ -17,7 +17,9 @@ export const protect = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    console.debug('[auth-debug] protect token received', { tokenPreview: token.slice(0, 20) });
     const decoded = verifyToken(token);
+    console.debug('[auth-debug] protect token decoded', { userId: decoded.id, role: decoded.role });
     const user = await User.findById(decoded.id).select('-password -resetOTP -resetOTPExpiry -otpResendCount -otpResendAt');
 
     if (!user) {

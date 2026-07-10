@@ -28,6 +28,8 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  console.debug('[auth-debug] protected route check', { loading, hasUser: Boolean(user), pathname: location.pathname });
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>;
   return user ? children : <Navigate to="/login" replace state={{ from: location }} />;
 };
